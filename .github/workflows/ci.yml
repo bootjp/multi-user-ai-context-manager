@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: PostgreSQL 17 integration tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Run PostgreSQL 17 tests with race detector and restore drill
+        run: docker compose -f compose.test.yaml up --build --abort-on-container-exit --exit-code-from tests
+      - name: Check formatting and run go vet
+        run: docker compose -f compose.test.yaml run --rm --no-deps tests make check
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose -f compose.test.yaml logs --no-color --tail=200
+      - name: Remove test containers
+        if: always()
+        run: docker compose -f compose.test.yaml down --volumes --remove-orphans
+
+  docker-build:
+    name: Docker image build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build application image
+        run: docker build --tag agent-context:ci .

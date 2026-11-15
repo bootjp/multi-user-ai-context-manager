@@ -73,4 +73,12 @@ context-packは最大200件の候補と100件のpinから決定的に選び、�
 通常Composeはlocalhost:8080で起動した状態を残し、試験用Composeだけを終了しました。
 共有チームでの試用と、10万版、1000未完了TODOでの性能目標は未測定です。
 HTTP認証とTLSの本番境界は入口の設定に依存し、頻度制限はプロセス単位です。
-ライセンスと公開範囲は未決で、GitHubへの公開やクラウド資源の作成は行っていません。
+ライセンスはApache License 2.0です。
+GitHubの非公開リポジトリで管理しており、一般公開やクラウド配備は行っていません。
+
+## 継続的な検証
+
+`.github/workflows/ci.yml` に、mainへのpushとpull requestで実行するCIを定義しています。
+統合テストは同じ `compose.test.yaml` を使い、PostgreSQL 17の復元試験を省略せず実行します。
+別ジョブでアプリケーション用Dockerfileをビルドします。
+各実行の成否は、対象コミットのGitHub Actions結果を確認してください。

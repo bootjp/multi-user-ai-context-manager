@@ -2,8 +2,9 @@
 
 複数人が使うエージェント間で、採用済み構成、改善案、進行中の変更、計測結果、TODO、ブロッカーを共有するHTTPサービスです。
 Goの単一バイナリとPostgreSQLで動作します。
-ローカル実装のMVPで、正式名称とライセンスは未決です。
-外部リソースの作成やリポジトリの公開は行っていません。
+ローカル実装のMVPで、正式名称は仮称です。
+ライセンスは [Apache License 2.0](LICENSE) です。
+非公開リポジトリで管理し、クラウドへの配置は行っていません。
 
 ## ローカルで試す
 
@@ -175,6 +176,17 @@ DBが未指定の場合、Go単体のDB統合試験はskipします。
 復元試験には `pg_dump` と `pg_restore`、一時DBの作成権限が必要です。
 受入結果と未検証事項は [docs/validation.md](docs/validation.md) に記録しています。
 
+## GitHub Actions CI
+
+[CIワークフロー](.github/workflows/ci.yml) はmainへのpush、pull request、手動実行で動きます。
+GitHub-hosted Ubuntu上で、次の二つを独立したジョブとして実行します。
+
+- PostgreSQL 17と同版のpg_dump/pg_restoreを含むCompose統合テスト（race detector付き）、gofmt、go vet。
+- 通常のDockerfileによるアプリケーションイメージのビルド。
+
+試験には隔離した一時DBとテスト専用設定を使い、ローカルの `.env` やトークンは渡しません。
+Actionsの権限はリポジトリ内容の読取りだけにし、生成イメージの公開やデプロイは行いません。
+
 ## 配置と運用
 
 設定は `DATABASE_URL` と `LISTEN_ADDR` です。
@@ -186,5 +198,5 @@ TLS、バックアップ、復元、クラウド設定は [docs/operations.md](d
 URLの自動取得、HTMLの実行、外部ベンチ投入、デプロイ、エージェント起動はサービス自身では行いません。
 leaseは協調する利用者間の調停であり、外部サービスで動いている操作を停止する保証はありません。
 
-ライセンスは未選択です。
-公開や再配布の前に、権利者が決定する必要があります。
+ライセンスは [Apache License 2.0](LICENSE)（SPDX: `Apache-2.0`）です。
+依存ライブラリには、それぞれのライセンスが適用されます。

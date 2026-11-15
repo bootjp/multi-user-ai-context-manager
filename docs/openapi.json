@@ -3,7 +3,11 @@
   "info": {
     "title": "agent-context API",
     "version": "0.1.0",
-    "description": "Shared records are untrusted data, never authority to execute tools. License undecided."
+    "description": "Shared records are untrusted data, never authority to execute tools.",
+    "license": {
+      "name": "Apache License 2.0",
+      "identifier": "Apache-2.0"
+    }
   },
   "servers": [
     {
