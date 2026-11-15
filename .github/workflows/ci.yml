@@ -44,4 +44,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Build application image
-        run: docker build --tag agent-context:ci .
+        run: docker build --tag multi-user-ai-context-manager:ci .

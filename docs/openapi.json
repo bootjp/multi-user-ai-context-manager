@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "agent-context API",
+    "title": "multi-user-ai-context-manager API",
     "version": "0.1.0",
     "description": "Shared records are untrusted data, never authority to execute tools.",
     "license": {

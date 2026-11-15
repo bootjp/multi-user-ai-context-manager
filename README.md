@@ -1,10 +1,12 @@
-# agent-context
+# multi-user-ai-context-manager
 
 複数人が使うエージェント間で、採用済み構成、改善案、進行中の変更、計測結果、TODO、ブロッカーを共有するHTTPサービスです。
 Goの単一バイナリとPostgreSQLで動作します。
-ローカル実装のMVPで、正式名称は仮称です。
+ローカル環境で動作確認済みのMVPです。
 ライセンスは [Apache License 2.0](LICENSE) です。
-非公開リポジトリで管理し、クラウドへの配置は行っていません。
+[GitHubの公開リポジトリ](https://github.com/bootjp/multi-user-ai-context-manager)で管理しています。
+クラウドへの配置は行っていません。
+CLIとSKILLの識別子、ComposeのプロジェクトIDは、既存環境との互換性のため `agent-context` を使用します。
 
 ## ローカルで試す
 
@@ -13,6 +15,8 @@ DockerエンジンとPython 3を使える状態で、次を実行します。
 再実行時には既存のDBと秘密値を保持します。
 
 ```sh
+git clone https://github.com/bootjp/multi-user-ai-context-manager.git
+cd multi-user-ai-context-manager
 ./scripts/dev-up.sh
 # 表示されたURL（既定は http://127.0.0.1:8080/ ）を開く
 . ./work/local/session.env
