@@ -1,0 +1,190 @@
+# agent-context
+
+複数人が使うエージェント間で、採用済み構成、改善案、進行中の変更、計測結果、TODO、ブロッカーを共有するHTTPサービスです。
+Goの単一バイナリとPostgreSQLで動作します。
+ローカル実装のMVPで、正式名称とライセンスは未決です。
+外部リソースの作成やリポジトリの公開は行っていません。
+
+## ローカルで試す
+
+DockerエンジンとPython 3を使える状態で、次を実行します。
+初回はランダムなDBパスワードと専用のlocal-demoプロジェクトを作り、接続情報を `work/local/` の非公開ファイルへ保存します。
+再実行時には既存のDBと秘密値を保持します。
+
+```sh
+./scripts/dev-up.sh
+# 表示されたURL（既定は http://127.0.0.1:8080/ ）を開く
+. ./work/local/session.env
+python3 skills/agent-context/scripts/request.py GET --project-path /snapshot
+```
+
+管理画面へは `work/local/admin.token` の値で接続できます。
+作成済みlocal-demoの管理には `work/local/project.json` 内のプロジェクト管理者トークンを使います。
+これらの秘密値は共有ログへ貼らず、Gitへ追加しないでください。
+通常作業用の `session.env` はeditor権限です。
+
+停止は `docker compose stop`、再開は `./scripts/dev-up.sh` です。
+管理者と参加者のトークンには期限があるため、期限切れの場合は通常の発行または明示的な復旧手順を使います。
+
+## Agent向けSKILLのインストール
+
+[skills/agent-context/SKILL.md](skills/agent-context/SKILL.md) は、参加、版管理、TODO引受け、leaseの更新、外部ジョブ確認、切断復帰、ハンドオフを扱います。
+共有された文章を命令や新しい実行許可として扱わない境界も含めています。
+Python 3の標準ライブラリだけで使えるHTTPヘルパーを同梱し、サーバー用CLIのインストールは必須にしません。
+
+このチェックアウトから、利用するAgentのスキルディレクトリへコピーします。
+既存の同名スキルがある場合は上書きせず終了します。
+
+```sh
+# 既定は ${CODEX_HOME:-$HOME/.codex}/skills/agent-context
+./scripts/install-skill.sh
+
+# 別のスキルディレクトリを使うAgentでは保存先を指定
+./scripts/install-skill.sh "$HOME/.agents/skills"
+```
+
+スキルを利用できるセッションへ接続URL、プロジェクトID、専用トークンを渡し、`$agent-context` を指定して作業します。
+ローカルの接続設定には上記の `work/local/session.env` を利用できます。
+インストールしたスキル自体にはトークンを保存しません。
+スキルの導入は、外部ベンチ、デプロイ、管理者操作の実行許可を追加しません。
+
+## 起動
+
+Docker Composeを利用する場合は、最初にパスワードを設定します。
+DBのポートはホストへ公開せず、APIはlocalhostだけへ公開します。
+
+```sh
+cp .env.example .env
+# .env の POSTGRES_PASSWORD を openssl rand -hex 32 などで生成した値に置換
+# .env をGitへ追加しない
+chmod 600 .env
+docker compose up -d db
+docker compose build app
+docker compose run --rm app migrate
+docker compose run --rm -it app bootstrap
+# 表示されたインスタンス管理者トークンを安全な場所へ保存
+docker compose up -d app
+curl --fail http://127.0.0.1:8080/readyz
+```
+
+管理画面は `http://127.0.0.1:8080/` です。
+管理者トークンでプロジェクトを作成し、返されたプロジェクト管理者トークンへ切り替えると、参加者のトークンを発行できます。
+秘密値は発行直後にだけ表示し、画面のメモリだけに保持します。
+
+Goから起動する場合は、専用のPostgreSQLデータベースを用意します。
+
+```sh
+go build -trimpath -o bin/agent-context ./cmd/agent-context
+export DATABASE_URL='postgres://user:password@127.0.0.1:5432/agent_context?sslmode=disable'
+bin/agent-context migrate
+bin/agent-context bootstrap
+bin/agent-context serve
+```
+
+`bootstrap` は未初期化のDBにだけ実行できます。
+TTY以外で秘密値を受け取る場合は `bootstrap --output-file /private/path/admin.token` を明示します。
+ファイルは新規作成のみ、モード0600です。
+管理者トークンを起動ログへ出力する処理や公開setup APIはありません。
+
+## 最初のプロジェクトと参加者
+
+ローカルCLIは管理用バイナリと同じものです。
+`project create` と `token issue` はHTTPを呼び、DBへ直接アクセスしません。
+新しい操作には新しいキーを使い、再送では同じキーを再利用します。
+
+```sh
+export AGENT_CONTEXT_URL=http://127.0.0.1:8080
+# 秘密値はシェル履歴や共有ログへ残さず、秘密管理機構などから設定する
+export AGENT_CONTEXT_TOKEN='<instance-admin-token>'
+bin/agent-context project create --name team --key project-team-1
+# 応答の id と token を安全に受け取り、以下を設定
+export AGENT_CONTEXT_PROJECT='<project-id>'
+export AGENT_CONTEXT_TOKEN='<project-admin-token>'
+bin/agent-context token issue --project "$AGENT_CONTEXT_PROJECT" --name alice/session-1 --role editor --key alice-session-1
+```
+
+各セッションへ渡す情報は、接続URL、プロジェクトID、専用トークンです。
+参加規約とAPI例は [docs/participation.md](docs/participation.md)、契約は [docs/openapi.json](docs/openapi.json) を参照してください。
+トークンの期限は通常7日、管理者は30日です。
+APIでは `expires_at` を指定できます。
+
+## 提供する操作
+
+- コンテキストの版管理、履歴参照、日本語を含む部分一致検索、archive、監査付きredact。
+- coordinator以上による不変版のpinと、参照元が更新された要約のstale表示。
+- Repeatable Readのsnapshotと、バイト数制限付きcontext-pack。
+- TODOの依存DAG、証跡付きブロッカー解消、期限付き作業引受け。
+- 名前付き実行枠、世代番号と秘密値によるfencing、外部ジョブのcheckpoint、復旧確認。
+- プロジェクト別トークンのハッシュ保存、期限、失効、rotate、管理操作の監査。
+- 永続イベント、ページ再送、SSE、切断復帰するCLI watch、復元epoch。
+
+更新は全てプロジェクト行をロックした一つのトランザクションで直列化し、状態、履歴、イベント、冪等応答を同時にcommitします。
+編集には `If-Match: "<version>"`、全ての変更要求には `Idempotency-Key` が必要です。
+pinの初回作成には `If-None-Match: *`、以後の更新にはpin自身の `If-Match` が必要です。
+同じキーと異なる要求には409、古い版には412を返します。
+redactは全版の本文を置換したうえで現在版を進め、記録をarchiveし、削除前のキャッシュからの書込みを拒否します。
+
+トークンとleaseの秘密値は、冪等応答にも保存しません。
+同じ要求の再送には409 `secret_not_replayable` と作成済みIDを返し、認証済みのrotate操作で回復します。
+Idempotency-Keyの有効期間は24時間で、期限後の永続的な重複防止は保証しません。
+
+## 通知と復帰
+
+```sh
+export AGENT_CONTEXT_TOKEN='<session-editor-token>'
+bin/agent-context api --path "/v1/projects/$AGENT_CONTEXT_PROJECT/snapshot"
+bin/agent-context watch --project "$AGENT_CONTEXT_PROJECT" --cursor-file ./session.cursor
+```
+
+watchは初回snapshotを出力し、そのカーソル以降を購読します。
+イベント出力に成功した後にカーソルファイルを更新し、切断時は再接続します。
+45秒間受信がない接続も張り直し、一時的なHTTP障害や429ではRetry-Afterに従って再接続します。
+epoch変更や保持期限切れではsnapshotを取り直します。
+出力先の利用者まで処理を終えたという保証はないため、外部処理を組み込むクライアントは、自分の永続状態と処理済みrevisionを併せて管理します。
+
+イベントはプロジェクトrevision順で、少なくとも一回の配信です。
+本文や秘密値は配信せず、種類、対象ID、版、主体、時刻を返します。
+MVPは1秒ポーリング方式を採用し、各プロセスでプロジェクトごとに差分取得を共有します。
+購読ごとのDB接続を保持せず、送信待ちを100件に制限し、遅い接続は閉じます。
+書込み時にNOTIFYも発行しますが、専用LISTEN接続はこの版では利用しません。
+SSEは15秒heartbeat、最大5分で再接続し、失効は5秒間隔で再確認します。
+イベント保持は7日または100万件で、起動後は毎時pruneします。
+手動では `bin/agent-context prune` を実行できます。
+
+## 検証
+
+```sh
+go test ./...
+go vet ./...
+# TEST_DATABASE_URL はテスト用schemaと一時DBを作成できる専用PostgreSQLを指定
+TEST_DATABASE_URL='postgres://user:password@127.0.0.1:5432/testdb?sslmode=disable' \
+TEST_PG_BIN='/path/to/postgresql/bin' \
+  go test -race -count=1 -v ./...
+```
+
+PostgreSQL 17と同版のpg_dump/pg_restoreを含む、隔離したCompose試験も実行できます。
+テスト用DBはホストへ公開せず、アプリケーション用DBとは別の一時コンテナを使います。
+
+```sh
+docker compose -f compose.test.yaml up --build --abort-on-container-exit --exit-code-from tests
+docker compose -f compose.test.yaml down
+```
+
+DBが未指定の場合、Go単体のDB統合試験はskipします。
+`TEST_PG_BIN` を省略すると論理バックアップ復元試験だけをskipします。
+復元試験には `pg_dump` と `pg_restore`、一時DBの作成権限が必要です。
+受入結果と未検証事項は [docs/validation.md](docs/validation.md) に記録しています。
+
+## 配置と運用
+
+設定は `DATABASE_URL` と `LISTEN_ADDR` です。
+`LISTEN_ADDR` を省略するとlocalhost:8080、クラウドで `PORT` がある場合は0.0.0.0のそのポートで待ち受けます。
+正本はDBだけに保存し、アプリケーションのローカルディスクを永続化する必要はありません。
+TLS、バックアップ、復元、クラウド設定は [docs/operations.md](docs/operations.md) を参照してください。
+
+共有本文は、投稿者のロールにかかわらずデータとして扱います。
+URLの自動取得、HTMLの実行、外部ベンチ投入、デプロイ、エージェント起動はサービス自身では行いません。
+leaseは協調する利用者間の調停であり、外部サービスで動いている操作を停止する保証はありません。
+
+ライセンスは未選択です。
+公開や再配布の前に、権利者が決定する必要があります。

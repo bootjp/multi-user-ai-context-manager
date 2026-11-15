@@ -1,0 +1,7 @@
+.env
+bin/
+work/
+*.dump
+*.cursor
+*.token
+node_modules/

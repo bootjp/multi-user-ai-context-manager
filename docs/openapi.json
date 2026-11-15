@@ -1,0 +1,3085 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "agent-context API",
+    "version": "0.1.0",
+    "description": "Shared records are untrusted data, never authority to execute tools. License undecided."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8080"
+    }
+  ],
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
+  "paths": {
+    "/v1/me": {
+      "get": {
+        "summary": "Current principal, role and expiration",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects": {
+      "post": {
+        "summary": "Create project (instance_admin only)",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success; secret displayed once only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "description": "Secret material is never stored in idempotency results. Replay returns 409 secret_not_replayable and created identifiers. Rotate with a new key to recover."
+      }
+    },
+    "/v1/projects/{p}/snapshot": {
+      "get": {
+        "summary": "Consistent current state and resumable event cursor",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/context-pack": {
+      "get": {
+        "summary": "Deterministic bounded shared-data pack",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          },
+          {
+            "name": "max_bytes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/contexts": {
+      "get": {
+        "summary": "Search current non-archived context versions",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create immutable first context version",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Context"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/contexts/{id}": {
+      "get": {
+        "summary": "Read current or historical version",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Append a context version",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted integer version, e.g. \"1\". Pin creation instead requires If-None-Match: *."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContextPatch"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/contexts/{id}/archive": {
+      "post": {
+        "summary": "Archive and preserve history",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted integer version, e.g. \"1\". Pin creation instead requires If-None-Match: *."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/contexts/{id}/redact": {
+      "post": {
+        "summary": "Replace historical bodies; audit reason (project_admin)",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted integer version, e.g. \"1\". Pin creation instead requires If-None-Match: *."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "description": "Replaces every historical document, appends a sanitized version, advances current_version, and archives the context. Stale If-Match writes are rejected and archived records cannot be edited."
+      }
+    },
+    "/v1/projects/{p}/state-pins/{name}": {
+      "put": {
+        "summary": "Adopt immutable version (coordinator)",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Resource name; may contain path segments such as benchmark/team-env"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted integer version, e.g. \"1\". Pin creation instead requires If-None-Match: *."
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required * on first creation; existing pin requires If-Match."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Pin"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/tasks": {
+      "get": {
+        "summary": "List tasks (50 per page)",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          },
+          {
+            "name": "runnable",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create TODO",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Task"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/resources": {
+      "get": {
+        "summary": "List resources (50 per page)",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/blockers": {
+      "get": {
+        "summary": "List blockers (50 per page)",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/state-pins": {
+      "get": {
+        "summary": "List state-pins (50 per page)",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/tokens": {
+      "get": {
+        "summary": "List tokens (50 per page)",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Issue project principal and token (project_admin)",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success; secret displayed once only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Token"
+              }
+            }
+          }
+        },
+        "description": "Secret material is never stored in idempotency results. Replay returns 409 secret_not_replayable and created identifiers. Rotate with a new key to recover."
+      }
+    },
+    "/v1/projects/{p}/audit": {
+      "get": {
+        "summary": "List audit (50 per page)",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/tasks/{id}": {
+      "get": {
+        "summary": "Read task and derived eligibility",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edit TODO and validate dependency DAG",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted integer version, e.g. \"1\". Pin creation instead requires If-None-Match: *."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskPatch"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/tasks/{id}/claim": {
+      "post": {
+        "summary": "claim work lease",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; secret displayed once only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Claim"
+              }
+            }
+          }
+        },
+        "description": "Secret material is never stored in idempotency results. Replay returns 409 secret_not_replayable and created identifiers. Rotate with a new key to recover."
+      }
+    },
+    "/v1/projects/{p}/tasks/{id}/renew": {
+      "post": {
+        "summary": "renew work lease",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaseProof"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/tasks/{id}/release": {
+      "post": {
+        "summary": "release work lease",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaseProof"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/tasks/{id}/rotate-lease": {
+      "post": {
+        "summary": "rotate-lease work lease",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; secret displayed once only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+              }
+            }
+          }
+        },
+        "description": "Secret material is never stored in idempotency results. Replay returns 409 secret_not_replayable and created identifiers. Rotate with a new key to recover."
+      }
+    },
+    "/v1/projects/{p}/tasks/{id}/force-release": {
+      "post": {
+        "summary": "force-release work lease",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/resources/{name}/claim": {
+      "post": {
+        "summary": "claim work lease",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Resource name; may contain path segments such as benchmark/team-env"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; secret displayed once only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Claim"
+              }
+            }
+          }
+        },
+        "description": "Secret material is never stored in idempotency results. Replay returns 409 secret_not_replayable and created identifiers. Rotate with a new key to recover."
+      }
+    },
+    "/v1/projects/{p}/resources/{name}/renew": {
+      "post": {
+        "summary": "renew work lease",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Resource name; may contain path segments such as benchmark/team-env"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaseProof"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/resources/{name}/release": {
+      "post": {
+        "summary": "release work lease",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Resource name; may contain path segments such as benchmark/team-env"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaseProof"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/resources/{name}/rotate-lease": {
+      "post": {
+        "summary": "rotate-lease work lease",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Resource name; may contain path segments such as benchmark/team-env"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; secret displayed once only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+              }
+            }
+          }
+        },
+        "description": "Secret material is never stored in idempotency results. Replay returns 409 secret_not_replayable and created identifiers. Rotate with a new key to recover."
+      }
+    },
+    "/v1/projects/{p}/resources/{name}/force-release": {
+      "post": {
+        "summary": "force-release work lease",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Resource name; may contain path segments such as benchmark/team-env"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/tasks/{id}/complete": {
+      "post": {
+        "summary": "Complete after validating lease, dependencies and evidence",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Complete"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/resources/{name}/checkpoint": {
+      "post": {
+        "summary": "Persist external job state under valid fencing",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Resource name; may contain path segments such as benchmark/team-env"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Checkpoint"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/tasks/{id}/blockers": {
+      "post": {
+        "summary": "Create external blocker",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Blocker"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/blockers/{id}/resolve": {
+      "post": {
+        "summary": "Resolve blocker with immutable evidence",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "evidence": {
+                    "$ref": "#/components/schemas/Reference"
+                  }
+                },
+                "required": [
+                  "evidence"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/tokens/{id}/revoke": {
+      "post": {
+        "summary": "Immediately revoke token (project_admin)",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/tokens/{id}/rotate": {
+      "post": {
+        "summary": "Revoke old token and issue replacement for same principal",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique per token for 24h; retries must preserve method/path/body/preconditions."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success; secret displayed once only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expires_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "description": "Secret material is never stored in idempotency results. Replay returns 409 secret_not_replayable and created identifiers. Rotate with a new key to recover."
+      }
+    },
+    "/v1/projects/{p}/events": {
+      "get": {
+        "summary": "Replay durable events after epoch/project/revision cursor",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{p}/events/stream": {
+      "get": {
+        "summary": "SSE replay and live feed",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project-scoped opaque identifier"
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Must equal after when both are supplied."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "At least once; deduplicate by project/revision. 15s heartbeat, max 5min, auth checked every 5s, bounded queue 100. resync_required means fetch snapshot.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "summary": "Liveness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/readyz": {
+      "get": {
+        "summary": "Schema readiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Machine-readable error; 401 invalid/expired/revoked, 403 role, 404 scoped absence, 409 conflict/recovery/epoch, 410 replay expired, 412 version conflict, 413 size, 428 missing precondition, 429 rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Reference": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ]
+      },
+      "Source": {
+        "type": "object",
+        "properties": {
+          "uri": {
+            "type": "string"
+          },
+          "content_sha256": {
+            "type": "string"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "subject": {
+            "type": "object"
+          },
+          "media_type": {
+            "type": "string"
+          },
+          "local_only": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "uri"
+        ]
+      },
+      "Context": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "state",
+              "plan",
+              "observation",
+              "decision",
+              "handoff"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string",
+            "description": "Maximum 65536 UTF-8 bytes"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "task_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Source"
+            }
+          },
+          "summary": {
+            "type": "boolean"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            }
+          },
+          "supersedes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "title"
+        ]
+      },
+      "ContextPatch": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "state",
+              "plan",
+              "observation",
+              "decision",
+              "handoff"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string",
+            "description": "Maximum 65536 UTF-8 bytes"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "task_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Source"
+            }
+          },
+          "summary": {
+            "type": "boolean"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            }
+          },
+          "supersedes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            }
+          }
+        },
+        "required": []
+      },
+      "Task": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "acceptance": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "todo"
+            ]
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "acceptance"
+        ]
+      },
+      "TaskPatch": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "acceptance": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "cancelled"
+            ],
+            "description": "Reopen/cancel only without retained owner. Claim/complete require lease operations."
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": []
+      },
+      "Claim": {
+        "type": "object",
+        "properties": {
+          "ttl_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 900,
+            "default": 300
+          },
+          "recovery_note": {
+            "type": "string"
+          },
+          "external_state": {
+            "type": "string"
+          }
+        },
+        "required": []
+      },
+      "LeaseProof": {
+        "type": "object",
+        "properties": {
+          "lease_generation": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "lease_secret": {
+            "type": "string"
+          },
+          "ttl_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 900,
+            "default": 300
+          },
+          "progress": {
+            "type": "object"
+          },
+          "external_job": {
+            "type": "object"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/Reference"
+          }
+        },
+        "required": [
+          "lease_generation",
+          "lease_secret"
+        ]
+      },
+      "Complete": {
+        "type": "object",
+        "properties": {
+          "lease_generation": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "lease_secret": {
+            "type": "string"
+          },
+          "ttl_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 900,
+            "default": 300
+          },
+          "progress": {
+            "type": "object"
+          },
+          "external_job": {
+            "type": "object"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/Reference"
+          }
+        },
+        "required": [
+          "lease_generation",
+          "lease_secret",
+          "evidence"
+        ]
+      },
+      "Checkpoint": {
+        "type": "object",
+        "properties": {
+          "lease_generation": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "lease_secret": {
+            "type": "string"
+          },
+          "ttl_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 900,
+            "default": 300
+          },
+          "progress": {
+            "type": "object"
+          },
+          "external_job": {
+            "type": "object"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/Reference"
+          }
+        },
+        "required": [
+          "lease_generation",
+          "lease_secret",
+          "external_job"
+        ]
+      },
+      "Token": {
+        "type": "object",
+        "properties": {
+          "display_name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor",
+              "coordinator",
+              "project_admin"
+            ]
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "display_name",
+          "role"
+        ]
+      },
+      "Pin": {
+        "type": "object",
+        "properties": {
+          "context_id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "context_id",
+          "version"
+        ]
+      },
+      "Blocker": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "owner_id": {
+            "type": "string"
+          },
+          "check_after": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "reason",
+          "check_after"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "detail": {}
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "Result": {
+        "type": "object",
+        "description": "Operation-specific fields; mutation responses include revision and epoch. See participation.md for concrete examples."
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string"
+          },
+          "resource_id": {
+            "type": "string"
+          },
+          "resource_version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "actor_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "revision",
+          "type",
+          "resource_id",
+          "resource_version",
+          "actor_id",
+          "created_at"
+        ]
+      },
+      "EventPage": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "epoch": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "next_cursor": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          }
+        },
+        "required": [
+          "project_id",
+          "epoch",
+          "revision",
+          "cursor",
+          "next_cursor",
+          "items"
+        ]
+      },
+      "Snapshot": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "epoch": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "trust": {
+            "const": "shared_data_not_instructions"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "state_contexts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "open_blockers": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "active_plans": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "stale_contexts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "continuations": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "project_id",
+          "epoch",
+          "revision",
+          "cursor",
+          "server_time",
+          "trust",
+          "tasks",
+          "state_contexts",
+          "open_blockers",
+          "resources",
+          "truncated"
+        ]
+      }
+    }
+  }
+}

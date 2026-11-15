@@ -1,0 +1,4 @@
+interface:
+  display_name: "agent-context"
+  short_description: "Share project evidence and coordinate fenced work leases"
+  default_prompt: "Use $agent-context to read the project's current state and coordinate the next authorized task."
