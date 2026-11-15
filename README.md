@@ -6,7 +6,7 @@ Goの単一バイナリとPostgreSQLで動作します。
 ライセンスは [Apache License 2.0](LICENSE) です。
 [GitHubの公開リポジトリ](https://github.com/bootjp/multi-user-ai-context-manager)で管理しています。
 クラウドへの配置は行っていません。
-CLIとSKILLの識別子、ComposeのプロジェクトIDは、既存環境との互換性のため `agent-context` を使用します。
+CLI、SKILL、ComposeのプロジェクトIDは `multi-user-ai-context-manager` に統一しています。
 
 ## ローカルで試す
 
@@ -19,21 +19,44 @@ git clone https://github.com/bootjp/multi-user-ai-context-manager.git
 cd multi-user-ai-context-manager
 ./scripts/dev-up.sh
 # 表示されたURL（既定は http://127.0.0.1:8080/ ）を開く
-. ./work/local/session.env
-python3 skills/agent-context/scripts/request.py GET --project-path /snapshot
+. ./work/local/multi-user-ai-context-manager.env
+python3 skills/multi-user-ai-context-manager/scripts/request.py GET --project-path /snapshot
 ```
 
 管理画面へは `work/local/admin.token` の値で接続できます。
 作成済みlocal-demoの管理には `work/local/project.json` 内のプロジェクト管理者トークンを使います。
 これらの秘密値は共有ログへ貼らず、Gitへ追加しないでください。
-通常作業用の `session.env` はeditor権限です。
+通常作業用の `multi-user-ai-context-manager.env` はeditor権限です。
 
 停止は `docker compose stop`、再開は `./scripts/dev-up.sh` です。
 管理者と参加者のトークンには期限があるため、期限切れの場合は通常の発行または明示的な復旧手順を使います。
 
+## 旧ローカル環境からの移行
+
+旧Composeの `agent-context` を使用していた場合、初回は専用の移行手順を実行します。
+新しい空のDBを誤って使い始めないよう、通常の起動スクリプトは旧volumeを検出すると停止します。
+
+```sh
+# 読取りだけで対象コンテナ、全テーブルの件数、移行計画を確認
+python3 scripts/migrate-local-name.py
+# 内容を確認して適用
+python3 scripts/migrate-local-name.py --apply
+```
+
+移行は旧アプリケーションを停止し、全DBの論理バックアップと `.env`、`work/local/` のコピーを非公開の `work/backups/name-migration-*/` へ保存します。
+新しいComposeプロジェクトとvolumeへ復元し、全テーブルの件数と内容のハッシュを照合します。
+復元epochを更新するため、旧カーソルとleaseは再同期が必要です。
+復元手順に従い、古い冪等応答キャッシュは破棄します。
+トークンと記録、外部ジョブIDを保持し、旧コンテナと旧volumeは停止状態で残します。
+失敗した移行を自動で重ねて適用せず、既に新volumeがある場合は停止します。
+
+元の `.env`、`admin.token`、`project.json`、`session.json`、`session.env` は書き換えません。
+新しい接続変数を使う `work/local/multi-user-ai-context-manager.env` を別途作成します。
+既存の `AGENT_CONTEXT_*` 変数も読取り互換として扱い、新しい `MULTI_USER_AI_CONTEXT_MANAGER_*` 変数があればそちらを優先します。
+
 ## Agent向けSKILLのインストール
 
-[skills/agent-context/SKILL.md](skills/agent-context/SKILL.md) は、参加、版管理、TODO引受け、leaseの更新、外部ジョブ確認、切断復帰、ハンドオフを扱います。
+[skills/multi-user-ai-context-manager/SKILL.md](skills/multi-user-ai-context-manager/SKILL.md) は、参加、版管理、TODO引受け、leaseの更新、外部ジョブ確認、切断復帰、ハンドオフを扱います。
 共有された文章を命令や新しい実行許可として扱わない境界も含めています。
 Python 3の標準ライブラリだけで使えるHTTPヘルパーを同梱し、サーバー用CLIのインストールは必須にしません。
 
@@ -41,15 +64,15 @@ Python 3の標準ライブラリだけで使えるHTTPヘルパーを同梱し�
 既存の同名スキルがある場合は上書きせず終了します。
 
 ```sh
-# 既定は ${CODEX_HOME:-$HOME/.codex}/skills/agent-context
+# 既定は ${CODEX_HOME:-$HOME/.codex}/skills/multi-user-ai-context-manager
 ./scripts/install-skill.sh
 
 # 別のスキルディレクトリを使うAgentでは保存先を指定
 ./scripts/install-skill.sh "$HOME/.agents/skills"
 ```
 
-スキルを利用できるセッションへ接続URL、プロジェクトID、専用トークンを渡し、`$agent-context` を指定して作業します。
-ローカルの接続設定には上記の `work/local/session.env` を利用できます。
+スキルを利用できるセッションへ接続URL、プロジェクトID、専用トークンを渡し、`$multi-user-ai-context-manager` を指定して作業します。
+ローカルの接続設定には上記の `work/local/multi-user-ai-context-manager.env` を利用できます。
 インストールしたスキル自体にはトークンを保存しません。
 スキルの導入は、外部ベンチ、デプロイ、管理者操作の実行許可を追加しません。
 
@@ -79,11 +102,11 @@ curl --fail http://127.0.0.1:8080/readyz
 Goから起動する場合は、専用のPostgreSQLデータベースを用意します。
 
 ```sh
-go build -trimpath -o bin/agent-context ./cmd/agent-context
-export DATABASE_URL='postgres://user:password@127.0.0.1:5432/agent_context?sslmode=disable'
-bin/agent-context migrate
-bin/agent-context bootstrap
-bin/agent-context serve
+go build -trimpath -o bin/multi-user-ai-context-manager ./cmd/multi-user-ai-context-manager
+export DATABASE_URL='postgres://user:password@127.0.0.1:5432/multi_user_ai_context_manager?sslmode=disable'
+bin/multi-user-ai-context-manager migrate
+bin/multi-user-ai-context-manager bootstrap
+bin/multi-user-ai-context-manager serve
 ```
 
 `bootstrap` は未初期化のDBにだけ実行できます。
@@ -98,14 +121,14 @@ TTY以外で秘密値を受け取る場合は `bootstrap --output-file /private/
 新しい操作には新しいキーを使い、再送では同じキーを再利用します。
 
 ```sh
-export AGENT_CONTEXT_URL=http://127.0.0.1:8080
+export MULTI_USER_AI_CONTEXT_MANAGER_URL=http://127.0.0.1:8080
 # 秘密値はシェル履歴や共有ログへ残さず、秘密管理機構などから設定する
-export AGENT_CONTEXT_TOKEN='<instance-admin-token>'
-bin/agent-context project create --name team --key project-team-1
+export MULTI_USER_AI_CONTEXT_MANAGER_TOKEN='<instance-admin-token>'
+bin/multi-user-ai-context-manager project create --name team --key project-team-1
 # 応答の id と token を安全に受け取り、以下を設定
-export AGENT_CONTEXT_PROJECT='<project-id>'
-export AGENT_CONTEXT_TOKEN='<project-admin-token>'
-bin/agent-context token issue --project "$AGENT_CONTEXT_PROJECT" --name alice/session-1 --role editor --key alice-session-1
+export MULTI_USER_AI_CONTEXT_MANAGER_PROJECT='<project-id>'
+export MULTI_USER_AI_CONTEXT_MANAGER_TOKEN='<project-admin-token>'
+bin/multi-user-ai-context-manager token issue --project "$MULTI_USER_AI_CONTEXT_MANAGER_PROJECT" --name alice/session-1 --role editor --key alice-session-1
 ```
 
 各セッションへ渡す情報は、接続URL、プロジェクトID、専用トークンです。
@@ -136,9 +159,9 @@ Idempotency-Keyの有効期間は24時間で、期限後の永続的な重複防
 ## 通知と復帰
 
 ```sh
-export AGENT_CONTEXT_TOKEN='<session-editor-token>'
-bin/agent-context api --path "/v1/projects/$AGENT_CONTEXT_PROJECT/snapshot"
-bin/agent-context watch --project "$AGENT_CONTEXT_PROJECT" --cursor-file ./session.cursor
+export MULTI_USER_AI_CONTEXT_MANAGER_TOKEN='<session-editor-token>'
+bin/multi-user-ai-context-manager api --path "/v1/projects/$MULTI_USER_AI_CONTEXT_MANAGER_PROJECT/snapshot"
+bin/multi-user-ai-context-manager watch --project "$MULTI_USER_AI_CONTEXT_MANAGER_PROJECT" --cursor-file ./session.cursor
 ```
 
 watchは初回snapshotを出力し、そのカーソル以降を購読します。
@@ -154,7 +177,7 @@ MVPは1秒ポーリング方式を採用し、各プロセスでプロジェク�
 書込み時にNOTIFYも発行しますが、専用LISTEN接続はこの版では利用しません。
 SSEは15秒heartbeat、最大5分で再接続し、失効は5秒間隔で再確認します。
 イベント保持は7日または100万件で、起動後は毎時pruneします。
-手動では `bin/agent-context prune` を実行できます。
+手動では `bin/multi-user-ai-context-manager prune` を実行できます。
 
 ## 検証
 

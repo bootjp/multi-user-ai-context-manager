@@ -1,6 +1,6 @@
 .PHONY: build test integration check
 build:
-	go build -trimpath -o bin/agent-context ./cmd/agent-context
+	go build -trimpath -o bin/multi-user-ai-context-manager ./cmd/multi-user-ai-context-manager
 test:
 	go test ./...
 integration:

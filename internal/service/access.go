@@ -163,7 +163,7 @@ func (s *Server) RecoverProjectAdmin(ctx context.Context, p, name, reason string
 	if _, e = tx.Exec(ctx, "INSERT INTO audit_entries(project_id,actor_id,action,target,reason) VALUES($1,'db-operator','project.admin_recovered',$2,$3)", p, i, reason); e != nil {
 		return "", e
 	}
-	if _, e = tx.Exec(ctx, "SELECT pg_notify('agent_context_changes',$1)", cursor(ep, p, rev)); e != nil {
+	if _, e = tx.Exec(ctx, "SELECT pg_notify('multi_user_ai_context_manager_changes',$1)", cursor(ep, p, rev)); e != nil {
 		return "", e
 	}
 	if e = tx.Commit(ctx); e != nil {

@@ -46,10 +46,10 @@ try:
         session = request('/v1/projects/' + project['id'] + '/tokens', project['token'], {'display_name': 'local/session', 'role': 'editor'}, 'local-demo-session')
         store(session_file, session)
     request('/v1/me', session['token'])
-    config = private / 'session.env'
+    config = private / 'multi-user-ai-context-manager.env'
     # Only this script's generated config is refreshed; source credentials are never overwritten.
     with open(config, 'w', opener=lambda p, f: os.open(p, f, 0o600)) as file:
-        for key, value in {'AGENT_CONTEXT_URL': base, 'AGENT_CONTEXT_PROJECT': project['id'], 'AGENT_CONTEXT_TOKEN': session['token']}.items():
+        for key, value in {'MULTI_USER_AI_CONTEXT_MANAGER_URL': base, 'MULTI_USER_AI_CONTEXT_MANAGER_PROJECT': project['id'], 'MULTI_USER_AI_CONTEXT_MANAGER_TOKEN': session['token']}.items():
             file.write('export ' + key + '=' + shlex.quote(value) + '\n')
     config.chmod(0o600)
     print('Local console: ' + base + '/')

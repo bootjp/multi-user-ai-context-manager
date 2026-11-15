@@ -54,8 +54,8 @@ func TestWatchReconnectPersistsCursorAndResnapshots(t *testing.T) {
 		cancel()
 	}))
 	defer srv.Close()
-	t.Setenv("AGENT_CONTEXT_URL", srv.URL)
-	t.Setenv("AGENT_CONTEXT_TOKEN", "private")
+	t.Setenv("MULTI_USER_AI_CONTEXT_MANAGER_URL", srv.URL)
+	t.Setenv("MULTI_USER_AI_CONTEXT_MANAGER_TOKEN", "private")
 	file := filepath.Join(t.TempDir(), "watch.cursor")
 	if e := watch(ctx, []string{"--project", "p", "--cursor-file", file}); e != nil {
 		t.Fatal(e)
@@ -70,8 +70,8 @@ func TestWatchReconnectPersistsCursorAndResnapshots(t *testing.T) {
 }
 
 func TestInvalidEndpointReturnsError(t *testing.T) {
-	t.Setenv("AGENT_CONTEXT_URL", "http://[broken")
-	t.Setenv("AGENT_CONTEXT_TOKEN", "private")
+	t.Setenv("MULTI_USER_AI_CONTEXT_MANAGER_URL", "http://[broken")
+	t.Setenv("MULTI_USER_AI_CONTEXT_MANAGER_TOKEN", "private")
 	if e := watch(context.Background(), []string{"--project", "p"}); e == nil {
 		t.Fatal("invalid endpoint accepted")
 	}
@@ -119,12 +119,41 @@ func TestWatchRetriesTransientFailureAndSilentConnection(t *testing.T) {
 		cancel()
 	}))
 	defer srv.Close()
-	t.Setenv("AGENT_CONTEXT_URL", srv.URL)
-	t.Setenv("AGENT_CONTEXT_TOKEN", "private")
+	t.Setenv("MULTI_USER_AI_CONTEXT_MANAGER_URL", srv.URL)
+	t.Setenv("MULTI_USER_AI_CONTEXT_MANAGER_TOKEN", "private")
 	if e := watchWithIdleTimeout(ctx, []string{"--project", "p", "--after", "ep:p:1"}, 50*time.Millisecond); e != nil {
 		t.Fatal(e)
 	}
 	if calls.Load() < 3 {
 		t.Fatal("did not recover from HTTP failure and stalled stream")
+	}
+}
+
+func TestConnectionEnvironmentCompatibility(t *testing.T) {
+	t.Setenv("AGENT_CONTEXT_URL", "http://legacy.invalid:8080")
+	t.Setenv("AGENT_CONTEXT_TOKEN", "legacy-token")
+	t.Setenv("AGENT_CONTEXT_PROJECT", "legacy-project")
+	for _, suffix := range []string{"URL", "TOKEN", "PROJECT"} {
+		primary := "MULTI_USER_AI_CONTEXT_MANAGER_" + suffix
+		prior, exists := os.LookupEnv(primary)
+		os.Unsetenv(primary)
+		t.Cleanup(func() {
+			if exists {
+				os.Setenv(primary, prior)
+			} else {
+				os.Unsetenv(primary)
+			}
+		})
+	}
+	base, token, e := connection()
+	if e != nil || base != "http://legacy.invalid:8080" || token != "legacy-token" || connectionEnv("PROJECT") != "legacy-project" {
+		t.Fatal("existing session environment no longer works")
+	}
+	t.Setenv("MULTI_USER_AI_CONTEXT_MANAGER_URL", "http://new.invalid:8080")
+	t.Setenv("MULTI_USER_AI_CONTEXT_MANAGER_TOKEN", "new-token")
+	t.Setenv("MULTI_USER_AI_CONTEXT_MANAGER_PROJECT", "new-project")
+	base, token, e = connection()
+	if e != nil || base != "http://new.invalid:8080" || token != "new-token" || connectionEnv("PROJECT") != "new-project" {
+		t.Fatal("new environment must take precedence")
 	}
 }

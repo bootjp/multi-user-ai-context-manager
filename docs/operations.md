@@ -54,9 +54,9 @@ Composeでは以下のように論理バックアップを取れます。
 ```sh
 umask 077
 mkdir -p work/backups
-docker compose exec -T db pg_dump -U agent_context -d agent_context -Fc \
-  > work/backups/agent-context.dump
-docker compose exec -T app /agent-context backup-manifest \
+docker compose exec -T db pg_dump -U multi_user_ai_context_manager -d multi_user_ai_context_manager -Fc \
+  > work/backups/multi-user-ai-context-manager.dump
+docker compose exec -T app /multi-user-ai-context-manager backup-manifest \
   > work/backups/manifest.json
 ```
 
@@ -66,14 +66,14 @@ pg_dumpと同じsnapshotを保証するものではなく、復元epochの更新
 ## DB復元
 
 復元はAPIへの流入を止めた状態で行います。
-以下は既存DBを破壊せず、新規の空DB `agent_context_restored` に復元する例です。
+以下は既存DBを破壊せず、新規の空DB `multi_user_ai_context_manager_restored` に復元する例です。
 接続先の切替えとバックアップの選択は運用者が行います。
 
 ```sh
 docker compose stop app
-docker compose exec -T db createdb -U agent_context agent_context_restored
-docker compose exec -T db pg_restore -U agent_context -d agent_context_restored \
-  --exit-on-error --no-owner --no-acl < work/backups/agent-context.dump
+docker compose exec -T db createdb -U multi_user_ai_context_manager multi_user_ai_context_manager_restored
+docker compose exec -T db pg_restore -U multi_user_ai_context_manager -d multi_user_ai_context_manager_restored \
+  --exit-on-error --no-owner --no-acl < work/backups/multi-user-ai-context-manager.dump
 # .env のパスワードを使った新DB接続URLを RESTORED_DATABASE_URL に安全に設定する
 docker compose run --rm -e DATABASE_URL="$RESTORED_DATABASE_URL" app \
   restore-epoch --reason 'restored from selected logical backup'
@@ -104,7 +104,7 @@ redactには `POST /contexts/:id/redact`、project_admin、理由、対象のIf-
 DBアクセス権を持つ運用者が、明示的に復旧します。
 
 ```sh
-bin/agent-context admin recover --reason 'administrator token lost'
+bin/multi-user-ai-context-manager admin recover --reason 'administrator token lost'
 ```
 
 旧インスタンス管理者トークンを全て失効させ、新しいトークンを一度だけ表示します。
@@ -112,6 +112,15 @@ bin/agent-context admin recover --reason 'administrator token lost'
 この操作は対象プロジェクトの旧project_adminトークンを全て失効させ、新しい主体とトークンを発行し、監査記録と変更イベントを保存します。
 
 ```sh
-bin/agent-context admin project-recover --project '<project-id>' \
+bin/multi-user-ai-context-manager admin project-recover --project '<project-id>' \
   --name 'recovered administrator' --reason 'project administrator tokens lost'
 ```
+
+## Compose名の移行
+
+旧プロジェクト名を使っている環境では、READMEの `scripts/migrate-local-name.py` のpreviewとapplyを使います。
+新しいプロジェクトIDは `multi-user-ai-context-manager`、DBとロールは `multi_user_ai_context_manager`、新volumeは `multi-user-ai-context-manager_pgdata` です。
+移行用バックアップには秘密情報も含まれるため、`work/` から共有場所へ移さず、保持期間を決めて管理してください。
+旧volumeと旧コンテナはロールバック時の保全用として停止状態で残します。
+新環境への書込み開始後に旧環境をそのまま再開すると新しいデータを失うため、その場合は新DBからのバックアップと明示的な復旧手順が必要です。
+旧カーソルとleaseは復元epoch更新で無効になりますが、既存のトークンと接続先URLは継続できます。

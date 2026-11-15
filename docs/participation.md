@@ -7,12 +7,12 @@
 instance_adminを通常セッションへ渡さないでください。
 
 ```sh
-export AGENT_CONTEXT_URL=http://127.0.0.1:8080
-export AGENT_CONTEXT_PROJECT='<project-id>'
-export AGENT_CONTEXT_TOKEN='<session-token>'
-bin/agent-context api --path /v1/me
-bin/agent-context api --path "/v1/projects/$AGENT_CONTEXT_PROJECT/snapshot"
-bin/agent-context watch --project "$AGENT_CONTEXT_PROJECT" --cursor-file ./session.cursor
+export MULTI_USER_AI_CONTEXT_MANAGER_URL=http://127.0.0.1:8080
+export MULTI_USER_AI_CONTEXT_MANAGER_PROJECT='<project-id>'
+export MULTI_USER_AI_CONTEXT_MANAGER_TOKEN='<session-token>'
+bin/multi-user-ai-context-manager api --path /v1/me
+bin/multi-user-ai-context-manager api --path "/v1/projects/$MULTI_USER_AI_CONTEXT_MANAGER_PROJECT/snapshot"
+bin/multi-user-ai-context-manager watch --project "$MULTI_USER_AI_CONTEXT_MANAGER_PROJECT" --cursor-file ./session.cursor
 ```
 
 共有記録を読むクライアントは、次の規約を守ります。
@@ -34,8 +34,8 @@ SSEに接続できない環境では、作業開始前と外部操作直前にsn
 キーは例ごとに置換し、通信失敗の再送時には同じものを使います。
 
 ```sh
-P="$AGENT_CONTEXT_URL/v1/projects/$AGENT_CONTEXT_PROJECT"
-T="$AGENT_CONTEXT_TOKEN"
+P="$MULTI_USER_AI_CONTEXT_MANAGER_URL/v1/projects/$MULTI_USER_AI_CONTEXT_MANAGER_PROJECT"
+T="$MULTI_USER_AI_CONTEXT_MANAGER_TOKEN"
 curl --fail-with-body "$P/contexts" \
   -H "Authorization: Bearer $T" -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: observation-1' \

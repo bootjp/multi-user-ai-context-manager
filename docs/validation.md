@@ -9,9 +9,9 @@
 
 | 検証 | 結果 |
 | --- | --- |
-| `go test -race -count=1 -v ./...`（専用DBとpgツール指定） | 22件成功、skipなし、race検出なし（PostgreSQL 17のCompose上） |
+| `go test -race -count=1 -v ./...`（専用DBとpgツール指定） | 23件成功、skipなし、race検出なし（PostgreSQL 17のCompose上） |
 | `go vet ./...` とgofmt確認 | 成功 |
-| `CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd/agent-context` | 成功 |
+| `CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd/multi-user-ai-context-manager` | 成功 |
 | `docker compose config --quiet` | 成功 |
 | 通常Dockerfileの実ビルドとCompose起動 | 成功。appとdbのhealthcheckを確認 |
 | PostgreSQL 17.12、pg_dump/pg_restore 17による全統合試験 | 成功。隔離したcompose.test.yamlで実行 |
@@ -83,3 +83,15 @@ GitHubの公開リポジトリ `bootjp/multi-user-ai-context-manager` で管理�
 統合テストは同じ `compose.test.yaml` を使い、PostgreSQL 17の復元試験を省略せず実行します。
 別ジョブでアプリケーション用Dockerfileをビルドします。
 各実行の成否は、対象コミットのGitHub Actions結果を確認してください。
+
+## 識別子統一とローカル移行
+
+CLIとSKILLのフォルダー名、コマンド名、Composeのプロジェクト名、DBとロール、Goのmodule pathを新名称へ統一しました。
+環境変数の標準名は `MULTI_USER_AI_CONTEXT_MANAGER_*` です。
+既存接続ファイルを保持するため、旧 `AGENT_CONTEXT_*` からの読取り互換と新変数の優先順位を試験しています。
+
+移行はpreviewを確認後に実施し、DBアーカイブの一覧を検証してから新volumeへ復元しました。
+17テーブルを確認し、復元で破棄する冪等応答キャッシュを除く16テーブルの件数と内容のハッシュを照合しました。
+この照合では復元epoch、leaseの世代と有効期限、移行で追加した監査記録だけを比較対象から除いています。
+元の `.env` と接続ファイルはバイト列のハッシュ一致を確認し、新変数の接続ファイルは別名で生成しています。
+旧コンテナと旧volumeは停止状態で残し、バックアップは非公開の `work/backups/` に保存しました。

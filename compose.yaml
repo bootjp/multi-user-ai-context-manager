@@ -1,15 +1,15 @@
-name: agent-context
+name: multi-user-ai-context-manager
 services:
   db:
     image: postgres:17-bookworm
     environment:
-      POSTGRES_DB: agent_context
-      POSTGRES_USER: agent_context
+      POSTGRES_DB: multi_user_ai_context_manager
+      POSTGRES_USER: multi_user_ai_context_manager
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agent_context -d agent_context"]
+      test: ["CMD-SHELL", "pg_isready -U multi_user_ai_context_manager -d multi_user_ai_context_manager"]
       interval: 3s
       timeout: 3s
       retries: 20
@@ -17,7 +17,7 @@ services:
   app:
     build: .
     environment:
-      DATABASE_URL: postgres://agent_context:${POSTGRES_PASSWORD}@db:5432/agent_context?sslmode=disable
+      DATABASE_URL: postgres://multi_user_ai_context_manager:${POSTGRES_PASSWORD}@db:5432/multi_user_ai_context_manager?sslmode=disable
       LISTEN_ADDR: 0.0.0.0:8080
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
@@ -25,7 +25,7 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "/agent-context", "health"]
+      test: ["CMD", "/multi-user-ai-context-manager", "health"]
       interval: 10s
       timeout: 4s
       retries: 3

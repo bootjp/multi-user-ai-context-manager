@@ -10,6 +10,11 @@ import urllib.parse
 import urllib.request
 
 
+def connection_env(suffix):
+    primary = 'MULTI_USER_AI_CONTEXT_MANAGER_' + suffix
+    return os.environ[primary] if primary in os.environ else os.environ.get('AGENT_CONTEXT_' + suffix, '')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('method', choices=['GET', 'POST', 'PATCH', 'PUT'])
@@ -22,18 +27,18 @@ def main():
     parser.add_argument('--if-none-match', action='store_true')
     parser.add_argument('--output', help='new private response file, useful for one-time lease secrets')
     args = parser.parse_args()
-    base = os.environ.get('AGENT_CONTEXT_URL', '').rstrip('/')
+    base = connection_env('URL').rstrip('/')
     parsed = urllib.parse.urlsplit(base)
     if parsed.scheme not in ('http', 'https') or not parsed.netloc or parsed.username or parsed.password or parsed.query or parsed.fragment:
-        parser.error('AGENT_CONTEXT_URL must be an absolute http(s) URL without credentials, query or fragment')
-    token = os.environ.get('AGENT_CONTEXT_TOKEN', '')
-    if not token and os.environ.get('AGENT_CONTEXT_TOKEN_FILE'):
-        token = Path(os.environ['AGENT_CONTEXT_TOKEN_FILE']).read_text().strip()
+        parser.error('MULTI_USER_AI_CONTEXT_MANAGER_URL must be an absolute http(s) URL without credentials, query or fragment')
+    token = connection_env('TOKEN')
+    if not token and connection_env('TOKEN_FILE'):
+        token = Path(connection_env('TOKEN_FILE')).read_text().strip()
     if not token:
-        parser.error('AGENT_CONTEXT_TOKEN or AGENT_CONTEXT_TOKEN_FILE is required')
+        parser.error('MULTI_USER_AI_CONTEXT_MANAGER_TOKEN or MULTI_USER_AI_CONTEXT_MANAGER_TOKEN_FILE is required')
     path = args.path
     if args.project_path is not None:
-        project = os.environ.get('AGENT_CONTEXT_PROJECT', '')
+        project = connection_env('PROJECT')
         if not project or not args.project_path.startswith('/'):
             parser.error('project ID and a /project-path are required')
         path = '/v1/projects/' + urllib.parse.quote(project, safe='') + args.project_path

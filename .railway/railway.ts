@@ -4,8 +4,8 @@ import { defineRailway, postgres, project, service } from "railway/iac";
 export default defineRailway(() => {
   const db = postgres("postgres");
   const api = service("multi-user-ai-context-manager", {
-    start: "/agent-context serve",
-    preDeploy: "/agent-context migrate",
+    start: "/multi-user-ai-context-manager serve",
+    preDeploy: "/multi-user-ai-context-manager migrate",
     healthcheck: "/readyz",
     healthcheckTimeout: 60,
     replicas: 1,

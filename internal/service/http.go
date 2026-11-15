@@ -210,7 +210,7 @@ func (s *Server) mutate(w http.ResponseWriter, r *http.Request, a access, p stri
 			_, e = tx.Exec(ctx, "INSERT INTO project_events(project_id,revision,type,resource_id,resource_version,actor_id) VALUES($1,$2,$3,$4,$5,$6)", m.p, m.rev, out.kind, out.target, out.version, m.a.Actor)
 		}
 		if e == nil {
-			_, e = tx.Exec(ctx, "SELECT pg_notify('agent_context_changes',$1)", cursor(m.ep, m.p, m.rev))
+			_, e = tx.Exec(ctx, "SELECT pg_notify('multi_user_ai_context_manager_changes',$1)", cursor(m.ep, m.p, m.rev))
 		}
 	}
 	if e != nil {

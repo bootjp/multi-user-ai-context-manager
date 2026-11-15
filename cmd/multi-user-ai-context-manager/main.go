@@ -18,19 +18,19 @@ import (
 	"syscall"
 	"time"
 
-	"agent-context/internal/service"
+	"github.com/bootjp/multi-user-ai-context-manager/internal/service"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
 	if e := run(); e != nil {
-		fmt.Fprintln(os.Stderr, "agent-context:", e)
+		fmt.Fprintln(os.Stderr, "multi-user-ai-context-manager:", e)
 		os.Exit(1)
 	}
 }
 func run() error {
 	if len(os.Args) < 2 {
-		return errors.New("usage: agent-context serve|migrate|bootstrap|admin recover|restore-epoch|prune|backup-manifest|project create|token issue|api|watch")
+		return errors.New("usage: multi-user-ai-context-manager serve|migrate|bootstrap|admin recover|restore-epoch|prune|backup-manifest|project create|token issue|api|watch")
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -155,17 +155,17 @@ func run() error {
 	}
 }
 func connection() (string, string, error) {
-	base := strings.TrimRight(os.Getenv("AGENT_CONTEXT_URL"), "/")
+	base := strings.TrimRight(connectionEnv("URL"), "/")
 	if base == "" {
 		base = "http://127.0.0.1:8080"
 	}
 	parsed, err := url.Parse(base)
 	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
-		return "", "", errors.New("AGENT_CONTEXT_URL must be an absolute http(s) URL without credentials, query or fragment")
+		return "", "", errors.New("MULTI_USER_AI_CONTEXT_MANAGER_URL must be an absolute http(s) URL without credentials, query or fragment")
 	}
-	token := os.Getenv("AGENT_CONTEXT_TOKEN")
+	token := connectionEnv("TOKEN")
 	if token == "" {
-		return "", "", errors.New("AGENT_CONTEXT_TOKEN required")
+		return "", "", errors.New("MULTI_USER_AI_CONTEXT_MANAGER_TOKEN required")
 	}
 	return base, token, nil
 }
@@ -179,7 +179,7 @@ func api(ctx context.Context, cmd string, args []string) error {
 	path := fs.String("path", "/v1/me", "API path")
 	name := fs.String("name", "", "project or principal display name")
 	role := fs.String("role", "editor", "project role")
-	project := fs.String("project", os.Getenv("AGENT_CONTEXT_PROJECT"), "project ID")
+	project := fs.String("project", connectionEnv("PROJECT"), "project ID")
 	if cmd == "project" || cmd == "token" {
 		if len(args) < 1 || cmd == "project" && args[0] != "create" || cmd == "token" && args[0] != "issue" {
 			return errors.New("expected project create or token issue")
@@ -279,7 +279,7 @@ func watch(ctx context.Context, args []string) error {
 }
 func watchWithIdleTimeout(ctx context.Context, args []string, idle time.Duration) error {
 	fs := flag.NewFlagSet("watch", flag.ContinueOnError)
-	p := fs.String("project", os.Getenv("AGENT_CONTEXT_PROJECT"), "project ID")
+	p := fs.String("project", connectionEnv("PROJECT"), "project ID")
 	file := fs.String("cursor-file", "", "private durable cursor file; advance only after stdout write succeeds")
 	after := fs.String("after", "", "snapshot cursor")
 	if e := fs.Parse(args); e != nil {
@@ -496,4 +496,12 @@ func retryDelay(value string, now time.Time) time.Duration {
 		return min(max(time.Second, at.Sub(now)), time.Minute)
 	}
 	return time.Second
+}
+
+// Legacy environment names remain readable so existing private connection files still work.
+func connectionEnv(suffix string) string {
+	if value, ok := os.LookupEnv("MULTI_USER_AI_CONTEXT_MANAGER_" + suffix); ok {
+		return value
+	}
+	return os.Getenv("AGENT_CONTEXT_" + suffix)
 }

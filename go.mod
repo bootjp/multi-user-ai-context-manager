@@ -1,4 +1,4 @@
-module agent-context
+module github.com/bootjp/multi-user-ai-context-manager
 
 go 1.25.0
 

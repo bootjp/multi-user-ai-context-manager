@@ -17,6 +17,10 @@ if ! docker info >/dev/null 2>&1; then
   echo 'Start a local Docker engine, then rerun this command.' >&2
   exit 1
 fi
+if docker volume inspect agent-context_pgdata >/dev/null 2>&1 && [ ! -f work/local/name-migration.json ]; then
+  echo 'Legacy local data detected. Preview scripts/migrate-local-name.py, then run it with --apply.' >&2
+  exit 1
+fi
 docker compose up -d --wait db
 docker compose build app
 docker compose run --rm app migrate

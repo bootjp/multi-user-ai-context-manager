@@ -1,4 +1,4 @@
 interface:
   display_name: "multi-user-ai-context-manager"
   short_description: "Share project evidence and coordinate fenced work leases"
-  default_prompt: "Use $agent-context to read the project's current state and coordinate the next authorized task."
+  default_prompt: "Use $multi-user-ai-context-manager to read the project's current state and coordinate the next authorized task."
